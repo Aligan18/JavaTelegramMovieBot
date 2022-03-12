@@ -1,0 +1,1 @@
+worker: sh target/classes/classes/java/MyTelegramBot
