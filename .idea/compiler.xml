@@ -27,7 +27,7 @@
           <entry name="$MAVEN_REPOSITORY$/com/google/errorprone/javac-shaded/9-dev-r4023-3/javac-shaded-9-dev-r4023-3.jar" />
           <entry name="$MAVEN_REPOSITORY$/com/squareup/javapoet/1.8.0/javapoet-1.8.0.jar" />
           <entry name="$MAVEN_REPOSITORY$/javax/annotation/jsr250-api/1.0/jsr250-api-1.0.jar" />
-          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.16.20/lombok-1.16.20.jar" />
+          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.22/lombok-1.18.22.jar" />
         </processorPath>
         <module name="myTelegramBot" />
       </profile>
