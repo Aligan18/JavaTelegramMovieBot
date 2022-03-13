@@ -273,7 +273,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
             getRequestExampleTest(message,"getRandom"," ");
         }
         else if (message.getText().equals("About")) {
-            sendMsg(message.getChatId().toString(),"Автор : Ганиев Алишер");
+            sendMsg(message.getChatId().toString(),"Автор : Ганиев Алишер"+ "\n" + "https://github.com/Aligan18/JavaTelegramMovieBot.git");
         }
 
         else {
