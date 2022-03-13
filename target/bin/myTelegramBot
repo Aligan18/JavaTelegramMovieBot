@@ -92,9 +92,9 @@ fi
 exec "$JAVACMD" $JAVA_OPTS \
   $EXTRA_JVM_ARGUMENTS \
   -classpath "$CLASSPATH" \
-  -Dapp.name="MyTelegramBot1" \
+  -Dapp.name="myTelegramBot" \
   -Dapp.pid="$$" \
   -Dapp.repo="$REPO" \
   -Dbasedir="$BASEDIR" \
-  src.main.java.classes.java.MyTelegramBot \
+  MyTelegramBot \
   "$@"
