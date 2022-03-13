@@ -1,1 +1,1 @@
-worker:  java $JAVA_OPTS -cp target/classes:target/dependency/* classes.java.MyTelegramBot
+worker: sh target/bin/MyTelegramBot1
