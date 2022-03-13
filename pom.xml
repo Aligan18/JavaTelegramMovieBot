@@ -64,8 +64,8 @@
                 <assembleDirectory>target</assembleDirectory>
                 <programs>
                     <program>
-                        <mainClass>src.main.java.classes.java.MyTelegramBot</mainClass>
-                        <name>MyTelegramBot2</name>
+                        <mainClass>main.java.classes.java.MyTelegramBot</mainClass>
+                        <name>MyTelegramBot3</name>
                     </program>
                 </programs>
             </configuration>
