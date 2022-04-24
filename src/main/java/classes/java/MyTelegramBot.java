@@ -1,9 +1,23 @@
 package classes.java;
 
-
+import java.util.Map.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.json.DupDetector;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.FirebaseOptions;
+import com.google.firebase.database.*;
+import com.google.firebase.internal.NonNull;
 import lombok.SneakyThrows;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.io.File;
 
 
+import org.apache.commons.lang3.ClassUtils;
+import org.apache.commons.lang3.reflect.FieldUtils;
+import org.json.JSONArray;
 import org.json.simple.JSONObject;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
@@ -16,29 +30,43 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
-
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStreamReader;
+import java.lang.reflect.Field;
 import java.net.URL;
 
 
 import java.util.*;
+import java.util.stream.IntStream;
 
 
 public class MyTelegramBot extends TelegramLongPollingBot {
-
+    DatabaseReference databaseReference;
     @SneakyThrows
     public static void main (String[] args) {
+
+        Thread t=new Thread(new ShowDbChanges());
+
+        t.run();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
 
         MyTelegramBot bot = new MyTelegramBot();
         TelegramBotsApi telegramBotsApi = new TelegramBotsApi(DefaultBotSession.class);
         telegramBotsApi.registerBot(bot);
     }
+
+
 
 
 
@@ -67,8 +95,85 @@ public class MyTelegramBot extends TelegramLongPollingBot {
                 else if (command[0].equals("getTrailer")){
                     getRequestExampleTest(update.getCallbackQuery().getMessage(),"getTrailer" ,  callback);
 
+
+
                 }
-                else if (command[0].equals("getSimilar")){
+                else if (command[0].equals("removeLikeMove")){
+                    System.out.println(command[1]);
+                    String title = command[1] ;
+                    System.out.println("TITLE " +title);
+                    String chatId = update.getCallbackQuery().getMessage().getChatId().toString();
+
+                    final FirebaseDatabase database = FirebaseDatabase.getInstance();
+                    DatabaseReference ref = database.getReference("users/"+chatId);
+                    ref.orderByChild("title").equalTo(title).addListenerForSingleValueEvent(new ValueEventListener() {
+                        @Override
+                        public void onDataChange(DataSnapshot dataSnapshot) {
+                            ObjectMapper mapper = new ObjectMapper();
+                            String jsonString = null;
+                            Object name = dataSnapshot.getValue();
+                            try {
+                                jsonString = mapper.writeValueAsString(name);
+                                Map<String, Object> map = mapper.readValue(jsonString, new TypeReference<>() {});
+                                String key = getFirstLevelKeys(map);
+                                ref.child(key).removeValueAsync();
+                                System.out.println("keys"+ key);
+
+                            } catch (JsonProcessingException e) {
+                                e.printStackTrace();
+                            }
+
+
+
+
+
+
+//                            System.out.println("name" +name);
+//                            String key  = ref.push().getKey();
+////
+                        }
+
+                        @Override
+                        public void onCancelled(DatabaseError databaseError) {
+
+                        }
+                    });
+
+
+
+                }
+                else if (command[0].equals("likeMovie")){
+
+                    String title = command[3] ;
+                    String movie_id =command[2];
+                    String type = command[1];
+                    String chatId = update.getCallbackQuery().getMessage().getChatId().toString();
+                    System.out.println(title +" "+ movie_id+" "+ type+" " +chatId);
+
+
+                    final FirebaseDatabase database = FirebaseDatabase.getInstance();
+                    DatabaseReference ref = database.getReference("users/"+chatId);
+                    ref.orderByChild("title").equalTo(title).addListenerForSingleValueEvent(new ValueEventListener() {
+                        @Override
+                        public void onDataChange(DataSnapshot dataSnapshot) {
+                            String name = dataSnapshot.getValue(String.class);
+                            if (name == null ) {
+                                System.out.println("snapshot"+ dataSnapshot +"   name"+ name);
+                                String key  = ref.push().getKey();
+                                ref.child(key).setValueAsync(new LikeMovies(title,movie_id,type,chatId));
+                            }
+                            else {
+                                System.out.println("snapshot"+ dataSnapshot +"   name"+ name);
+                                System.out.println("flag"+ name);
+                            }
+                        }
+
+                        @Override
+                        public void onCancelled(DatabaseError databaseError) {
+
+                        }
+                    });
+
 
                 }
                 else if (command[0].equals("getOverview")){
@@ -213,6 +318,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
 
             }
 
+
             if (type == "search") {
                 String POPULAR_MOVIES_URL = "https://api.themoviedb.org/3/search/multi?api_key="+TMDB_KEY +"&language=en-US&query="+typeAndId +"&page=1&include_adult=false";
                 URL url = JsonUtils.createUrl(POPULAR_MOVIES_URL);
@@ -231,6 +337,14 @@ public class MyTelegramBot extends TelegramLongPollingBot {
 
 
 
+    }
+
+    public static String getFirstLevelKeys(Map<String, Object> map) {
+        String key= null ;
+        for (Map.Entry<String, Object> entry : map.entrySet()) {
+            key = entry.getKey();
+        }
+        return key;
     }
 
     public static int getRandomIntegerBetweenRange(double min, double max){
@@ -264,6 +378,9 @@ public class MyTelegramBot extends TelegramLongPollingBot {
         else if (message.getText().equals("\uD83D\uDCFA Популярные сериалы")) {
             getRequestExampleTest(message,"\uD83D\uDCFA Популярные сериалы","");
         }
+        else if (message.getText().equals("❤ Понравившиеся фильмы")) {
+            getFirebaseRequest(message,"❤ Понравившиеся фильмы");
+        }
         else if (message.getText().equals("\uD83D\uDD0E Поиск фильма")) {
           sendMsg(message.getChatId().toString(), "Введите название фильма");
         }
@@ -281,6 +398,90 @@ public class MyTelegramBot extends TelegramLongPollingBot {
         }
 
     }
+
+    private void getFirebaseRequest(Message message, String type) {
+
+
+        String chatId = message.getChatId().toString();
+        System.out.println(chatId);
+        final FirebaseDatabase database = FirebaseDatabase.getInstance();
+        DatabaseReference ref = database.getReference("users/"+chatId);
+        System.out.println(ref);
+
+        ref.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+
+                Object name = dataSnapshot.getValue();
+                System.out.println(" фильмов " + name);
+                if (name == null) {
+
+                    System.out.println("нету фильмов ");
+                } else {
+                    ObjectMapper mapper = new ObjectMapper();
+                    String jsonString = null;
+                    try {
+                        jsonString = mapper.writeValueAsString(name);
+
+
+                        Map<String, Object> map = mapper.readValue(jsonString, new TypeReference<>() {});
+                        List<LikeMovies> keys =  getKeys(map);
+                        System.out.println(map);
+                        System.out.println("keys "+keys+ "name "+name);
+                        sendInlineKeyBoardLikeMovies(keys,chatId);
+//
+
+
+                    } catch (JsonProcessingException e) {
+                        e.printStackTrace();
+                    }
+
+
+                }
+
+
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
+    }
+    public static List<LikeMovies> getKeys(Map<String, Object> map) {
+        List<LikeMovies> keys = new ArrayList<>();
+        for (Map.Entry<String, Object> entry : map.entrySet()) {
+
+            if (entry.getValue() instanceof Map) {
+                Map<String, Object> nested = (Map<String, Object>) entry.getValue();
+                System.out.println("map   "+nested.get("title"));
+                LikeMovies key = new LikeMovies(nested.get("title").toString(), nested.get("movie_id").toString(), nested.get("type").toString(), nested.get("chatId").toString() );
+                keys.add(key);
+            }
+        }
+        return keys;
+    }
+
+    public static void findAllKeys(Object object, Set<String> finalKeys) {
+        if (object instanceof JSONObject) {
+            JSONObject jsonObject = (JSONObject) object;
+
+            jsonObject.keySet().forEach(childKey -> {
+                finalKeys.add((String) childKey);
+                findAllKeys(jsonObject.get(childKey), finalKeys);
+            });
+        } else if (object instanceof JSONArray) {
+            JSONArray jsonArray = (JSONArray) object;
+
+            IntStream.range(0, jsonArray.length())
+                    .mapToObj(jsonArray::get)
+                    .forEach(o -> findAllKeys(o, finalKeys));
+        }
+    }
+
+
+
+
 
     public synchronized void sendInlineKeyBoardMessage( JSONObject[] movie_titles, String chatId, String type) {
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
@@ -340,12 +541,62 @@ public class MyTelegramBot extends TelegramLongPollingBot {
         }
     }
 
+
+
+    public synchronized void sendInlineKeyBoardLikeMovies( List<LikeMovies> movie_titles, String chatId) {
+        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+
+
+
+        List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
+
+        for (int i = 0; i < movie_titles.size(); i++) {
+
+            System.out.println(movie_titles.get(i));
+
+            InlineKeyboardButton inlineKeyboardButton1 = new InlineKeyboardButton();
+            inlineKeyboardButton1.setText((String) movie_titles.get(i).title);
+            inlineKeyboardButton1.setCallbackData("getMovieInfo/"+movie_titles.get(i).type+"/"+(movie_titles.get(i).movie_id));
+            InlineKeyboardButton inlineKeyboardButton2 = new InlineKeyboardButton();
+            inlineKeyboardButton2.setText("\uD83D\uDC94");
+            inlineKeyboardButton2.setCallbackData("removeLikeMove/"+movie_titles.get(i).title);
+
+
+            List<InlineKeyboardButton> keyboardButtonsRow1 = new ArrayList<>();
+            keyboardButtonsRow1.add(inlineKeyboardButton1);
+            keyboardButtonsRow1.add(inlineKeyboardButton2);
+            rowList.add(keyboardButtonsRow1);
+        }
+
+        inlineKeyboardMarkup.setKeyboard(rowList);
+
+        SendMessage sendMessage = new SendMessage();
+
+        sendMessage.setChatId(chatId);
+        sendMessage.setText("Список  : Понравившихся фильмов " );
+        sendMessage.setReplyMarkup(inlineKeyboardMarkup);
+        try {
+            execute(sendMessage) ;
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+    }
+
     public synchronized void sendInlineKeyBoardForInfo( JSONObject movie_info, String chatId, String type) {
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
         String keyTitle = null;
         String value = null;
+        String title= null ;
 
+        if (Objects.equals(type, "tv")){
+            title = movie_info.get("name").toString();
+        }
+        else if (Objects.equals(type, "movie")) {
+            System.out.println("nbg"+ type);
+            title = movie_info.get("original_title").toString();
+        }
 
+        System.out.println("name "+ title);
 
         List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
 
@@ -362,6 +613,12 @@ public class MyTelegramBot extends TelegramLongPollingBot {
             inlineKeyboardButton2.setCallbackData("getTrailer/"+type+"/"+(movie_info.get("id").toString()));
             List<InlineKeyboardButton> keyboardButtonsRow2 = new ArrayList<>();
             keyboardButtonsRow2.add(inlineKeyboardButton2);
+            /// Кнопка Трейлер
+            InlineKeyboardButton inlineKeyboardButton4 = new InlineKeyboardButton();
+            inlineKeyboardButton4.setText("Смотреть позже ❤");
+            inlineKeyboardButton4.setCallbackData("likeMovie/"+type+"/"+(movie_info.get("id").toString())+"/"+title);
+            List<InlineKeyboardButton> keyboardButtonsRow4 = new ArrayList<>();
+            keyboardButtonsRow4.add(inlineKeyboardButton4);
                 /// Кнопка похожие Фильмы
             InlineKeyboardButton inlineKeyboardButton3 = new InlineKeyboardButton();
             inlineKeyboardButton3.setText("Похожие Фильмы  \uD83C\uDF9E" );
@@ -372,6 +629,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
 
             rowList.add(keyboardButtonsRow1);
             rowList.add(keyboardButtonsRow2);
+            rowList.add(keyboardButtonsRow4);
 //            rowList.add(keyboardButtonsRow3);
 
 
@@ -418,6 +676,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
         KeyboardRow keyboardFirstRow = new KeyboardRow();
 
         // Add buttons to the first keyboard row
+
         keyboardFirstRow.add(new KeyboardButton("\uD83C\uDFAC Популярные фильмы"));
 
         // Second keyboard row
@@ -429,6 +688,8 @@ public class MyTelegramBot extends TelegramLongPollingBot {
         // Add the buttons to the second keyboard row
         keyboardSecondRow2.add(new KeyboardButton("\uD83D\uDCFA Популярные сериалы"));
 
+        KeyboardRow keyboardRow3 = new KeyboardRow();
+        keyboardRow3.add(new KeyboardButton("❤ Понравившиеся фильмы"));
 
         KeyboardRow keyboardSecondRow3 = new KeyboardRow();
         // Add the buttons to the second keyboard row
@@ -440,6 +701,7 @@ public class MyTelegramBot extends TelegramLongPollingBot {
         // Add all of the keyboard rows to the list
         keyboard.add(keyboardFirstRow);
         keyboard.add(keyboardSecondRow2);
+        keyboard.add(keyboardRow3);
         keyboard.add(keyboardSecondRow);
         keyboard.add(keyboardSecondRow3);
         keyboard.add(keyboardSecondRow4);
